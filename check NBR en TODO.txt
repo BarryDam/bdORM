@@ -30,5 +30,3 @@ functie params gewijzigd:
 - duplicate was duplicate(deepcopy, { newData, excludeColumns }) is nu duplicate({ asDraft, newData, excludeColumns})
 
 
-
-Todo:
