@@ -32,5 +32,3 @@ functie params gewijzigd:
 
 
 Todo:
-
-BdOrmDbConnectionCapHana > opgehaalde kolommen en key uit db zijn UPPERCASE . .
