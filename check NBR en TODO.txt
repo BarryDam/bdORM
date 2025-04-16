@@ -1,0 +1,36 @@
+gebruik van:
+- joi er uit
+
+renames:
+- getChangeFields -> getChangedProperties
+- isChanged -> hasPropertyValueChanged
+- countRows -> count
+
+Kijken of dit een specifiek nbr model moet worden:
+- check UPDATED_DATE en setChangeDateToCurrentDate
+- getTableName
+- FOREIGN_KEY en getForeignKey
+
+Controleren:
+- contructor origineel > kan niet met mixens overweg ?
+
+
+r uit:
+- get CDS_MODEL
+- cdsSelect()
+- deleteModels
+- registerModel
+- getSubModel
+- callbackPromise
+- createError
+- isModelError
+
+
+functie params gewijzigd:
+- duplicate was duplicate(deepcopy, { newData, excludeColumns }) is nu duplicate({ asDraft, newData, excludeColumns})
+
+
+
+Todo:
+
+BdOrmDbConnectionCapHana > opgehaalde kolommen en key uit db zijn UPPERCASE . .

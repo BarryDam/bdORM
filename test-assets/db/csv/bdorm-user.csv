@@ -1,0 +1,3 @@
+id;firstname;lastname;email;dateCreated;deleted
+1;John;Doe;john.doe@example.com;;
+2;Barry;Dam;barry.dam@example.com;;

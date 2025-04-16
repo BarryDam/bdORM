@@ -1,0 +1,3 @@
+view USER_VIEW AS
+
+SELECT bdorm_user.*, firstname || ' ' ||  lastname as fullname  FROM bdorm_user;
