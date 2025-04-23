@@ -48,4 +48,17 @@ export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
         if (!PRIMARY_KEYS[table]) throw new BdORMError(`No primary key found for table ${table}`);
         return PRIMARY_KEYS[table];
     }
+
+
+    public async create(table: string, data: Record<string, any>) {
+        const columns = Object.keys(data),
+            placeholders = columns.map(() => '?').join(','),
+            pk = await this.getTablePrimaryKey(table);
+        await this.query(
+            `INSERT INTO ${table} (${columns.join(',')}) VALUES (${placeholders})`,
+            columns.map(column => data[column]),
+        );
+        const result = await this.query(`SELECT * FROM ${table} ORDER BY ${pk} DESC LIMIT 1`);
+        return result[0];
+    }
 }
