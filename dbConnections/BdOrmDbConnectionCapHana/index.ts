@@ -11,6 +11,14 @@ import cds from '@sap/cds';
 const PRIMARY_KEYS: Record<string, string> = {};
 const TABLE_COLUMNS: Record<string, string[]> = {};
 
+const remapResultColumns = (result: Record<string, any>, columns: string[]) => {
+    return Object.entries(result).reduce((resultMapped, [key, value]) => {
+        const column = columns.find(column => column.toUpperCase() === key.toUpperCase());
+        resultMapped[column ?? key] = value;
+        return resultMapped;
+    }, {} as Record<string, any>);
+};
+
 export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
     protected async _db() {
         return cds.db ? cds.db : await cds.connect.to('db');
@@ -23,8 +31,8 @@ export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
     }
 
     public async getTableColumns(table: string): Promise<string[]> {
-        const columns = getTableColumns(table);
-        if (columns) return columns;
+        const cdsColumns = getTableColumns(table);
+        if (cdsColumns) return cdsColumns;
         if (TABLE_COLUMNS[table]) return TABLE_COLUMNS[table];
         const tableInfo: { COLUMN_NAME: string }[] = await this.query(
             `SELECT COLUMN_NAME FROM TABLE_COLUMNS WHERE TABLE_NAME = '${table}'`,
@@ -49,7 +57,6 @@ export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
         return PRIMARY_KEYS[table];
     }
 
-
     public async create(table: string, data: Record<string, any>) {
         const columns = Object.keys(data),
             placeholders = columns.map(() => '?').join(','),
@@ -60,5 +67,29 @@ export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
         );
         const result = await this.query(`SELECT * FROM ${table} ORDER BY ${pk} DESC LIMIT 1`);
         return result[0];
+    }
+
+    /**
+     * Custom overwrites for list and read > hana stores the db columns in uppercase, so we need to convert the columns to what is defined in the cds file
+     */
+    public async list(
+        table: string,
+        options: {
+            columns?: string | string[];
+            filters?: Record<string, any> | string;
+            limit?: number;
+            offset?: number;
+            orderBy?: string;
+            values?: any[];
+        } = {},
+    ) {
+        const results = await super.list(table, options),
+            columns = await this.getTableColumns(table);
+        return results?.map((result: Record<string, any>) => remapResultColumns(result, columns));
+    }
+    public async read(table: string, primaryKeyValue: string | number, { primaryKey }: { primaryKey?: string } = {}) {
+        const result = await super.read(table, primaryKeyValue, { primaryKey }),
+            columns = await this.getTableColumns(table);
+        return result ? remapResultColumns(result, columns) : result;
     }
 }
