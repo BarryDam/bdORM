@@ -17,6 +17,7 @@ const getDefinitions = () => {
     };
     if (Object.keys(cdsDefinitions).length === 0) return undefined;
     Object.entries(cdsDefinitions).forEach(([key, { elements, name }]) => {
+        if (elements === undefined) return;
         (_definitionCache as unknown as Definitions)[name.toLowerCase().replace(/\./g, '_') as unknown as string] = {
             primaryKey: Object.entries(elements).find(([_, { key }]) => key)?.[0] ?? '',
             columnNames: Object.entries(elements).map(([column]) => column),
