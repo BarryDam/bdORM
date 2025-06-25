@@ -46,6 +46,10 @@ const getLocalWeakMapValue = (instance: BdORMBase, key: string) => {
                     instance.setProperty(property, value);
                 };
             }
+            if ('value' in propertyDefinion && propertyDefinion.value === undefined) {
+                delete propertyDefinion.value;
+                if ('writable' in propertyDefinion) delete propertyDefinion.writable;
+            }
             try {
                 Object.defineProperty(instance, property, propertyDefinion);
             } catch (e) {
@@ -168,7 +172,7 @@ abstract class BdORMBase {
      * @returns the changed properties
      */
     public getChangedProperties(): string[] {
-        return !this.isNew() ? getLocalWeakMapValue(this, 'changedProperties') ?? [] : [];
+        return !this.isNew() ? (getLocalWeakMapValue(this, 'changedProperties') ?? []) : [];
     }
 
     /**
@@ -181,7 +185,7 @@ abstract class BdORMBase {
         const properties = PROPERTIES_WEAKMAP.get(this) ?? {};
         Object.keys(properties).forEach(property => {
             data[property] = this.getProperty(property, { preventFormatting });
-            returnData[property] = preventFormatting ? data[property] : this[property] ?? data[property];
+            returnData[property] = preventFormatting ? data[property] : (this[property] ?? data[property]);
         });
         return returnData;
     }
