@@ -1,5 +1,5 @@
 {
-    "name": "@bd/orm",
+    "name": "bd-orm",
     "version": "0.0.1",
     "description": "NodeJS object-relational mapping (ORM)",
     "author": "Barry Dam",
@@ -19,7 +19,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/BarryDam/bdorm.git"
+        "url": "git+https://github.com/BarryDam/bdorm.git"
     },
     "keywords": [
         "NodeJs",
