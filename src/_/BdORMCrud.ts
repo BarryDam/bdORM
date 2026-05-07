@@ -24,16 +24,33 @@ const _filterDataByTable = async (self: BdORMCrud): Promise<Record<string, any>>
             {} as Record<string, any>,
         );
     },
+    _escapeSqlString = (value: string): string => value.replace(/'/g, "''"),
+    _formatWhereValue = (value: any): string => {
+        if (value === null || typeof value === 'undefined') return 'NULL';
+        if (value instanceof Date) return `'${_escapeSqlString(value.toISOString())}'`;
+        if (typeof value === 'number' || typeof value === 'bigint') return `${value}`;
+        if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+        if (typeof value === 'string') return `'${_escapeSqlString(value)}'`;
+        throw new BdORMError(`Unsupported where value type: ${typeof value}`);
+    },
+    _objectWhereToSql = (where: Record<string, any>): string =>
+        Object.entries(where)
+            .map(([column, value]) =>
+                value === null || typeof value === 'undefined'
+                    ? `${column} IS NULL`
+                    : `${column} = ${_formatWhereValue(value)}`,
+            )
+            .join(' AND '),
     _applySoftDeleteFilter = (
         self: typeof BdORMCrud,
         where?: Record<string, any> | string,
     ): Record<string, any> | string | undefined => {
         if (!self.usesSoftDelete()) return where;
         if (typeof where === 'string') return `(${where}) AND ${self.getSoftDeleteColumn()} IS NULL`;
-        return {
+        return _objectWhereToSql({
             ...(where || {}),
             [self.getSoftDeleteColumn()]: null,
-        };
+        });
     };
 
 export default class BdORMCrud extends BdORMBase {
