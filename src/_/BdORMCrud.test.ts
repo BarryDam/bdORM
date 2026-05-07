@@ -183,7 +183,8 @@ describe('bd-orm BdORMCrud', () => {
             expect(resultsAfterDelete[0].firstname).toBe('SoftDelete');
             expect(resultsAfterDelete[0].lastname).toBe('Me');
             expect(resultsAfterDelete[0].deleted).not.toBeNull();
-            expect(new Date(resultsAfterDelete[0].deleted)).toBeInstanceOf(Date);
+            const deletedAt = new Date(resultsAfterDelete[0].deleted);
+            expect(Number.isNaN(deletedAt.valueOf())).toBe(false);
             await expectErrorMessage(async () => {
                 await UserSoftDelete.fetchById(id);
             }, `No entry found for ${UserSoftDelete.VIEW} with ${UserSoftDelete.PRIMARY_KEY} ${id}`);
