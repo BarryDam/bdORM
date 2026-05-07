@@ -1,6 +1,6 @@
 {
     "name": "bd-orm",
-    "version": "0.0.3",
+    "version": "0.1.1",
     "description": "NodeJS object-relational mapping (ORM)",
     "author": "Barry Dam",
     "main": "dist/index.js",
@@ -37,7 +37,7 @@
         "@actions/core": "^3.0.0",
         "@cap-js/cds-types": "^0.10.0",
         "@cap-js/sqlite": "^1.10.0",
-        "@sap/cds-dk": "^8.9.17",
+        "@sap/cds-dk": "^8.9.19",
         "@sap/dev-cap-tools": "^1.44.1",
         "@types/jest": "^29.5.14",
         "@types/node": "^22.14.1",

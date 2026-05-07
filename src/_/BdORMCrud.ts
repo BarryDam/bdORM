@@ -13,17 +13,68 @@ export interface BdORMDuplicateParams {
     excludeColumns?: string[];
 }
 
-const _filerDataByTable = async (self: BdORMCrud): Promise<Record<string, any>> => {
-    const data = self.getData(true);
-    const columns = await (self.constructor as typeof BdORMCrud).getDbConnection().getTableColumns(self.getTable());
-    return Object.keys(data).reduce((acc, key) => {
-        if (columns.includes(key)) acc[key] = data[key];
-        return acc;
-    }, {} as Record<string, any>);
-};
+const _filterDataByTable = async (self: BdORMCrud): Promise<Record<string, any>> => {
+        const data = self.getData(true);
+        const columns = await (self.constructor as typeof BdORMCrud).getDbConnection().getTableColumns(self.getTable());
+        return Object.keys(data).reduce(
+            (acc, key) => {
+                if (columns.includes(key)) acc[key] = data[key];
+                return acc;
+            },
+            {} as Record<string, any>,
+        );
+    },
+    _escapeSqlString = (value: string): string => value.replace(/'/g, "''"),
+    _formatWhereValue = (value: any): string => {
+        if (value === null || typeof value === 'undefined') return 'NULL';
+        if (value instanceof Date) return `'${_escapeSqlString(value.toISOString())}'`;
+        if (typeof value === 'number' || typeof value === 'bigint') return `${value}`;
+        if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+        if (typeof value === 'string') return `'${_escapeSqlString(value)}'`;
+        throw new BdORMError(`Unsupported where value type: ${typeof value}`);
+    },
+    _objectWhereToSql = (where: Record<string, any>): string =>
+        Object.entries(where)
+            .map(([column, value]) =>
+                value === null || typeof value === 'undefined'
+                    ? `${column} IS NULL`
+                    : `${column} = ${_formatWhereValue(value)}`,
+            )
+            .join(' AND '),
+    _applySoftDeleteFilter = (
+        self: typeof BdORMCrud,
+        where?: Record<string, any> | string,
+    ): Record<string, any> | string | undefined => {
+        if (!self.usesSoftDelete()) return where;
+        if (typeof where === 'string') return `(${where}) AND ${self.getSoftDeleteColumn()} IS NULL`;
+        return _objectWhereToSql({
+            ...(where || {}),
+            [self.getSoftDeleteColumn()]: null,
+        });
+    };
 
 export default class BdORMCrud extends BdORMBase {
     private static _DbConnection: InstanceType<typeof BdOrmDbConnection>;
+    /**
+     * Softdelete zorgt ervoor dat een delete operatie niet fysiek een record verwijderd, maar alleen markeert als verwijderd.
+     * Dit kan handig zijn als je bijvoorbeeld een log wilt bijhouden van verwijderde records of als je een record tijdelijk wilt verwijderen zonder het permanent te verwijderen.
+     */
+    protected static _softDelete = false;
+    /**
+     * De naam van de kolom die gebruikt wordt voor softdelete. Standaard is dit 'deleted', maar dit kan worden aangepast indien nodig.
+     * Deze kolom moet aanwezig zijn in de database/tabel én in de view of andere read-source die door dit model gebruikt wordt om records op te halen.
+     * Bij een softdelete zal deze kolom worden gevuld met de datum en tijd van verwijdering.
+     * Bij het ophalen van records zal er automatisch een filter worden toegevoegd om alleen records op te halen waarbij deze kolom null is (dus niet verwijderd).
+     * Wanneer een custom DB_VIEW wordt gebruikt, moet deze view de soft-delete kolom dus ook exposen om runtime-fouten te voorkomen.
+     */
+    protected static _softDeleteColumn = 'deleted';
+
+    static usesSoftDelete() {
+        return this._softDelete;
+    }
+    static getSoftDeleteColumn() {
+        return this._softDeleteColumn;
+    }
 
     // Events
     protected async beforeCreate<K extends string>(beforeCreateParams?: MethodParams<K>) {
@@ -63,8 +114,23 @@ export default class BdORMCrud extends BdORMBase {
         table: string,
         primaryKeyValue: string | number,
         options?: { primaryKey: string },
-    ): Promise<unknown>;
-    private _execDBConnectionMethod(method: keyof BdOrmDbConnection, ...args: any[]): Promise<any> {
+    ): Promise<void>;
+    private async _execDBConnectionMethod(method: keyof BdOrmDbConnection, ...args: any[]): Promise<any> {
+        if ((this.constructor as typeof BdORMCrud)._softDelete && method === 'delete') {
+            const table = args[0];
+            const primaryKeyValue = args[1];
+            const DbConnection = (this.constructor as typeof BdORMCrud)._DbConnection as any;
+            const tablePrimaryKey =
+                (typeof DbConnection.getTablePrimaryKey === 'function'
+                    ? await DbConnection.getTablePrimaryKey(table)
+                    : null) || this.getPrimaryKey();
+
+            method = 'update';
+            args[1] = {
+                [(this.constructor as typeof BdORMCrud).getSoftDeleteColumn()]: new Date().toISOString(),
+                [tablePrimaryKey]: primaryKeyValue,
+            };
+        }
         //@ts-ignore
         return (this.constructor as typeof BdORMCrud)._DbConnection[method](...args);
     }
@@ -73,12 +139,17 @@ export default class BdORMCrud extends BdORMBase {
         Record<string, any>
     > {
         if (!preventBeforeCreate) await this.beforeCreate();
-        const data = await _filerDataByTable(this),
+        const data = await _filterDataByTable(this),
             primaryKey = this.getPrimaryKey();
         if (primaryKey in data) delete data[primaryKey];
         const result = { ...(await this._execDBConnectionMethod('create', this.getTable(), data)) };
         const primaryKeyValue = primaryKey in result ? result[primaryKey] : false;
         if (primaryKeyValue) delete result[primaryKey];
+        if ((this.constructor as typeof BdORMCrud).usesSoftDelete()) {
+            // when softdelete is enabled, the create method will return the deleted column with a null value, we need to remove it from the result to prevent confusion
+            const softDeleteColumn = (this.constructor as typeof BdORMCrud).getSoftDeleteColumn();
+            if (softDeleteColumn in result) delete result[softDeleteColumn];
+        }
         // when creating a new entry, it is not necessary to add all columns
         // and with an insert, you get all columns back from the db
         // so recreate the propertyDescriptors
@@ -96,11 +167,22 @@ export default class BdORMCrud extends BdORMBase {
     private async _update({ preventBeforeUpdate = false, preventAfterUpdate = false } = {}): Promise<void> {
         if (this.isNew()) throw new BdORMError('Cannot update an new instance');
         if (!preventBeforeUpdate) await this.beforeUpdate();
-        const data = await _filerDataByTable(this);
+        const data = await _filterDataByTable(this);
         await this._execDBConnectionMethod('update', this.getTable(), data, {
             primaryKey: this.getPrimaryKey(),
         });
         if (!preventAfterUpdate) await this.afterUpdate();
+    }
+
+    constructor(data: Record<string, any> = {}) {
+        const Model = new.target as typeof BdORMCrud;
+        if (Model.usesSoftDelete()) {
+            const softDeleteColumn = Model.getSoftDeleteColumn();
+            const { [softDeleteColumn]: _, ...dataWithoutSoftDelete } = data;
+            super(dataWithoutSoftDelete);
+        } else {
+            super(data);
+        }
     }
 
     /**
@@ -164,6 +246,7 @@ export default class BdORMCrud extends BdORMBase {
     // STATICS
 
     static async count(where?: Record<string, any> | string, values?: any[]): Promise<number> {
+        where = _applySoftDeleteFilter(this, where);
         const result = await this._DbConnection.list(this.VIEW, {
             columns: 'COUNT(*) as count',
             filters: where,
@@ -183,6 +266,7 @@ export default class BdORMCrud extends BdORMBase {
         where?: Record<string, any> | string,
         values?: any[],
     ): Promise<InstanceType<T>[]> {
+        where = _applySoftDeleteFilter(this, where);
         const results = await this._DbConnection.list(this.VIEW, {
             columns: this.COLUMNS_TO_FETCH as string,
             filters: where,
@@ -203,6 +287,7 @@ export default class BdORMCrud extends BdORMBase {
         where: Record<string, any> | string,
         values?: any[],
     ): Promise<InstanceType<T> | undefined> {
+        where = _applySoftDeleteFilter(this, where) as Record<string, any> | string;
         let limit;
         if (typeof where === 'string') where += ' LIMIT 1';
         else limit = 1;
@@ -220,7 +305,12 @@ export default class BdORMCrud extends BdORMBase {
         primaryKeyValue: string | number,
     ): Promise<InstanceType<T> | undefined> {
         const primaryKey = await this._DbConnection.getTablePrimaryKey(this.TABLE);
-        const result = await this._DbConnection.read(this.VIEW, primaryKeyValue, { primaryKey });
+        const filters = `${_applySoftDeleteFilter(this, `${primaryKey} = ?`) as string} LIMIT 1`;
+        const results = await this._DbConnection.list(this.VIEW, {
+            filters,
+            values: [primaryKeyValue],
+        });
+        const result = results[0];
         if (!result)
             throw new BdORMError(`No entry found for ${this.VIEW} with ${this.PRIMARY_KEY} ${primaryKeyValue}`);
         return new this(result) as InstanceType<T>;
