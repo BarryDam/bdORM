@@ -172,6 +172,7 @@ describe('bd-orm BdORMCrud', () => {
             const user = await UserSoftDelete.create({ firstname: 'SoftDelete', lastname: 'Me' });
             const id = user.id;
             const CheckUser = await UserSoftDelete.fetchById(id);
+            console.log(CheckUser?.getData());
             expect(CheckUser).toBeInstanceOf(UserSoftDelete);
             expect(CheckUser?.id).toBe(id);
             const results = await dbConnection.query('SELECT * FROM bdorm_user WHERE id = ?', [id]);
@@ -226,6 +227,8 @@ describe('bd-orm BdORMCrud', () => {
                 protected static _softDelete = true;
             }
             const user = await UserSoftDelete.create({ firstname: 'SoftDeleteFetchAllString', lastname: 'Me' });
+            const result = await UserSoftDelete.fetch('firstname = ?', ['SoftDeleteFetchAllString']);
+            expect(result).toHaveLength(1);
             await user.delete();
             const fetched = await UserSoftDelete.fetch('firstname = ?', ['SoftDeleteFetchAllString']);
             expect(fetched).toHaveLength(0);
