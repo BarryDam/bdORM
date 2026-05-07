@@ -270,10 +270,9 @@ export default class BdORMCrud extends BdORMBase {
         primaryKeyValue: string | number,
     ): Promise<InstanceType<T> | undefined> {
         const primaryKey = await this._DbConnection.getTablePrimaryKey(this.TABLE);
-        const filters = _applySoftDeleteFilter(this, `${primaryKey} = ?`) as string;
+        const filters = `${_applySoftDeleteFilter(this, `${primaryKey} = ?`) as string} LIMIT 1`;
         const results = await this._DbConnection.list(this.VIEW, {
             filters,
-            limit: 1,
             values: [primaryKeyValue],
         });
         const result = results[0];
