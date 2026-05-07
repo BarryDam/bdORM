@@ -1,6 +1,6 @@
 {
     "name": "bd-orm",
-    "version": "0.0.3",
+    "version": "0.1.1",
     "description": "NodeJS object-relational mapping (ORM)",
     "author": "Barry Dam",
     "main": "dist/index.js",

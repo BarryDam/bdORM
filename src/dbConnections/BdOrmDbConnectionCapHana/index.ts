@@ -12,11 +12,14 @@ const PRIMARY_KEYS: Record<string, string> = {};
 const TABLE_COLUMNS: Record<string, string[]> = {};
 
 const remapResultColumns = (result: Record<string, any>, columns: string[]) => {
-    return Object.entries(result).reduce((resultMapped, [key, value]) => {
-        const column = columns.find(column => column.toUpperCase() === key.toUpperCase());
-        resultMapped[column ?? key] = value;
-        return resultMapped;
-    }, {} as Record<string, any>);
+    return Object.entries(result).reduce(
+        (resultMapped, [key, value]) => {
+            const column = columns.find(column => column.toUpperCase() === key.toUpperCase());
+            resultMapped[column ?? key] = value;
+            return resultMapped;
+        },
+        {} as Record<string, any>,
+    );
 };
 
 export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {

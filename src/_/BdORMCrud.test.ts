@@ -163,6 +163,95 @@ describe('bd-orm BdORMCrud', () => {
         expect(user?.fullname).toBeUndefined();
     });
 
+    describe('SoftDelete tests', () => {
+        it('Should not delete a user when softdelete is enabled', async () => {
+            class UserSoftDelete extends User {
+                protected static _softDelete = true;
+            }
+            // first add a user
+            const user = await UserSoftDelete.create({ firstname: 'SoftDelete', lastname: 'Me' });
+            const id = user.id;
+            const CheckUser = await UserSoftDelete.fetchById(id);
+            expect(CheckUser).toBeInstanceOf(UserSoftDelete);
+            expect(CheckUser?.id).toBe(id);
+            const results = await dbConnection.query('SELECT * FROM bdorm_user WHERE id = ?', [id]);
+            expect(results).toHaveLength(1);
+            // then delete the user
+            await user.delete();
+            const resultsAfterDelete = await dbConnection.query('SELECT * FROM bdorm_user WHERE id = ?', [id]);
+            expect(resultsAfterDelete).toHaveLength(1);
+            expect(resultsAfterDelete[0].firstname).toBe('SoftDelete');
+            expect(resultsAfterDelete[0].lastname).toBe('Me');
+            expect(resultsAfterDelete[0].deleted).not.toBeNull();
+            const deletedAt = new Date(resultsAfterDelete[0].deleted);
+            expect(Number.isNaN(deletedAt.valueOf())).toBe(false);
+            await expectErrorMessage(async () => {
+                await UserSoftDelete.fetchById(id);
+            }, `No entry found for ${UserSoftDelete.VIEW} with ${UserSoftDelete.PRIMARY_KEY} ${id}`);
+        });
+
+        it('Should not fetch a soft-deleted user by primary key', async () => {
+            class UserSoftDelete extends User {
+                protected static _softDelete = true;
+            }
+            const user = await UserSoftDelete.create({ firstname: 'SoftDeleteFetch', lastname: 'Me' });
+            await user.delete();
+            await expectErrorMessage(async () => {
+                await UserSoftDelete.fetchByPrimaryKey(user.id);
+            }, `No entry found for ${UserSoftDelete.VIEW} with ${UserSoftDelete.PRIMARY_KEY} ${user.id}`);
+        });
+
+        it('Should not fetch a soft-deleted user with fetchOne', async () => {
+            class UserSoftDelete extends User {
+                protected static _softDelete = true;
+            }
+            const user = await UserSoftDelete.create({ firstname: 'SoftDeleteFetchOne', lastname: 'Me' });
+            await user.delete();
+            const fetched = await UserSoftDelete.fetchOne('id = ?', [user.id]);
+            expect(fetched).toBeUndefined();
+        });
+
+        it('Should not fetch a soft-deleted user with fetch', async () => {
+            class UserSoftDelete extends User {
+                protected static _softDelete = true;
+            }
+            const user = await UserSoftDelete.create({ firstname: 'SoftDeleteFetchAll', lastname: 'Me' });
+            await user.delete();
+            const fetched = await UserSoftDelete.fetch({ firstname: 'SoftDeleteFetchAll' });
+            expect(fetched).toHaveLength(0);
+        });
+
+        it('Should not fetch a soft-deleted user with fetch and where as string', async () => {
+            class UserSoftDelete extends User {
+                protected static _softDelete = true;
+            }
+            const user = await UserSoftDelete.create({ firstname: 'SoftDeleteFetchAllString', lastname: 'Me' });
+            const result = await UserSoftDelete.fetch('firstname = ?', ['SoftDeleteFetchAllString']);
+            expect(result).toHaveLength(1);
+            await user.delete();
+            const fetched = await UserSoftDelete.fetch('firstname = ?', ['SoftDeleteFetchAllString']);
+            expect(fetched).toHaveLength(0);
+        });
+        it('Should not count soft-deleted users when softdelete is enabled', async () => {
+            class UserSoftDelete extends User {
+                protected static _softDelete = true;
+            }
+            const before = await UserSoftDelete.count();
+            const user = await UserSoftDelete.create({ firstname: 'SoftDeleteCount', lastname: 'Me' });
+            await user.delete();
+            const after = await UserSoftDelete.count();
+            expect(after).toBe(before);
+        });
+
+        it('Should not have the column deleted in the model instance when softdelete is enabled', async () => {
+            class UserSoftDelete extends User {
+                protected static _softDelete = true;
+            }
+            const user = await UserSoftDelete.create({ firstname: 'SoftDeleteColumn', lastname: 'Me' });
+            expect((user as any).deleted).toBeUndefined();
+        });
+    });
+
     describe('Duplicate tests', () => {
         it('Should duplicate the user as draft and remove dateCreated', async () => {
             const user = await User.fetchById(1); // John Doe
