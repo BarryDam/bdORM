@@ -114,7 +114,7 @@ export default class BdORMCrud extends BdORMBase {
         table: string,
         primaryKeyValue: string | number,
         options?: { primaryKey: string },
-    ): Promise<unknown>;
+    ): Promise<void>;
     private async _execDBConnectionMethod(method: keyof BdOrmDbConnection, ...args: any[]): Promise<any> {
         if ((this.constructor as typeof BdORMCrud)._softDelete && method === 'delete') {
             const table = args[0];
