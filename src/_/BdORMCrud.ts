@@ -45,8 +45,10 @@ export default class BdORMCrud extends BdORMBase {
     protected static _softDelete = false;
     /**
      * De naam van de kolom die gebruikt wordt voor softdelete. Standaard is dit 'deleted', maar dit kan worden aangepast indien nodig.
-     * Deze kolom moet aanwezig zijn in de database en bij een softdelete zal deze kolom worden gevuld met de datum en tijd van verwijdering.
+     * Deze kolom moet aanwezig zijn in de database/tabel én in de view of andere read-source die door dit model gebruikt wordt om records op te halen.
+     * Bij een softdelete zal deze kolom worden gevuld met de datum en tijd van verwijdering.
      * Bij het ophalen van records zal er automatisch een filter worden toegevoegd om alleen records op te halen waarbij deze kolom null is (dus niet verwijderd).
+     * Wanneer een custom DB_VIEW wordt gebruikt, moet deze view de soft-delete kolom dus ook exposen om runtime-fouten te voorkomen.
      */
     protected static _softDeleteColumn = 'deleted';
 
