@@ -172,7 +172,6 @@ describe('bd-orm BdORMCrud', () => {
             const user = await UserSoftDelete.create({ firstname: 'SoftDelete', lastname: 'Me' });
             const id = user.id;
             const CheckUser = await UserSoftDelete.fetchById(id);
-            console.log(CheckUser?.getData());
             expect(CheckUser).toBeInstanceOf(UserSoftDelete);
             expect(CheckUser?.id).toBe(id);
             const results = await dbConnection.query('SELECT * FROM bdorm_user WHERE id = ?', [id]);
