@@ -96,12 +96,20 @@ export default class BdORMCrud extends BdORMBase {
         primaryKeyValue: string | number,
         options?: { primaryKey: string },
     ): Promise<unknown>;
-    private _execDBConnectionMethod(method: keyof BdOrmDbConnection, ...args: any[]): Promise<any> {
+    private async _execDBConnectionMethod(method: keyof BdOrmDbConnection, ...args: any[]): Promise<any> {
         if ((this.constructor as typeof BdORMCrud)._softDelete && method === 'delete') {
+            const table = args[0];
+            const primaryKeyValue = args[1];
+            const DbConnection = (this.constructor as typeof BdORMCrud)._DbConnection as any;
+            const tablePrimaryKey =
+                (typeof DbConnection.getTablePrimaryKey === 'function'
+                    ? await DbConnection.getTablePrimaryKey(table)
+                    : null) || this.getPrimaryKey();
+
             method = 'update';
             args[1] = {
                 [(this.constructor as typeof BdORMCrud).getSoftDeleteColumn()]: new Date().toISOString(),
-                [args[2]?.primaryKey || this.getPrimaryKey()]: args[1], // primaryKeyValue,
+                [tablePrimaryKey]: primaryKeyValue,
             };
         }
         //@ts-ignore
