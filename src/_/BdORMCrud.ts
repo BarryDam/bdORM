@@ -13,7 +13,7 @@ export interface BdORMDuplicateParams {
     excludeColumns?: string[];
 }
 
-const _filerDataByTable = async (self: BdORMCrud): Promise<Record<string, any>> => {
+const _filterDataByTable = async (self: BdORMCrud): Promise<Record<string, any>> => {
         const data = self.getData(true);
         const columns = await (self.constructor as typeof BdORMCrud).getDbConnection().getTableColumns(self.getTable());
         return Object.keys(data).reduce(
@@ -122,12 +122,17 @@ export default class BdORMCrud extends BdORMBase {
         Record<string, any>
     > {
         if (!preventBeforeCreate) await this.beforeCreate();
-        const data = await _filerDataByTable(this),
+        const data = await _filterDataByTable(this),
             primaryKey = this.getPrimaryKey();
         if (primaryKey in data) delete data[primaryKey];
         const result = { ...(await this._execDBConnectionMethod('create', this.getTable(), data)) };
         const primaryKeyValue = primaryKey in result ? result[primaryKey] : false;
         if (primaryKeyValue) delete result[primaryKey];
+        if ((this.constructor as typeof BdORMCrud).usesSoftDelete()) {
+            // when softdelete is enabled, the create method will return the deleted column with a null value, we need to remove it from the result to prevent confusion
+            const softDeleteColumn = (this.constructor as typeof BdORMCrud).getSoftDeleteColumn();
+            if (softDeleteColumn in result) delete result[softDeleteColumn];
+        }
         // when creating a new entry, it is not necessary to add all columns
         // and with an insert, you get all columns back from the db
         // so recreate the propertyDescriptors
@@ -145,11 +150,22 @@ export default class BdORMCrud extends BdORMBase {
     private async _update({ preventBeforeUpdate = false, preventAfterUpdate = false } = {}): Promise<void> {
         if (this.isNew()) throw new BdORMError('Cannot update an new instance');
         if (!preventBeforeUpdate) await this.beforeUpdate();
-        const data = await _filerDataByTable(this);
+        const data = await _filterDataByTable(this);
         await this._execDBConnectionMethod('update', this.getTable(), data, {
             primaryKey: this.getPrimaryKey(),
         });
         if (!preventAfterUpdate) await this.afterUpdate();
+    }
+
+    constructor(data: Record<string, any> = {}) {
+        const Model = new.target as typeof BdORMCrud;
+        if (Model.usesSoftDelete()) {
+            const softDeleteColumn = Model.getSoftDeleteColumn();
+            const { [softDeleteColumn]: _, ...dataWithoutSoftDelete } = data;
+            super(dataWithoutSoftDelete);
+        } else {
+            super(data);
+        }
     }
 
     /**

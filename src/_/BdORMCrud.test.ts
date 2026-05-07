@@ -243,6 +243,14 @@ describe('bd-orm BdORMCrud', () => {
             const after = await UserSoftDelete.count();
             expect(after).toBe(before);
         });
+
+        it('Should not have the column deleted in the model instance when softdelete is enabled', async () => {
+            class UserSoftDelete extends User {
+                protected static _softDelete = true;
+            }
+            const user = await UserSoftDelete.create({ firstname: 'SoftDeleteColumn', lastname: 'Me' });
+            expect((user as any).deleted).toBeUndefined();
+        });
     });
 
     describe('Duplicate tests', () => {
