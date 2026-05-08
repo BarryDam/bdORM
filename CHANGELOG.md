@@ -1,4 +1,4 @@
-# 0.1.1
+# 0.1.2
 ###### 07-05-2026
 - Added soft-delete support: when enabled, delete now marks records with a timestamp and excludes them from fetch/count queries.
 
