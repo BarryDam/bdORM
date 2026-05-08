@@ -6,3 +6,4 @@ import BdOrmDbConnectionSQLBase from './dbConnections/BdOrmDbConnectionSQLBase';
 
 export default class BdOrm extends BaseORMCrud {}
 export { BdOrmDbConnection, BdOrmDbConnectionCapSqlite, BdOrmDbConnectionCapHana, BdOrmDbConnectionSQLBase };
+export { BdORMError } from './_/BdORMError';
