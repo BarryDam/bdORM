@@ -1,3 +1,7 @@
+# 0.1.3
+###### 27-05-2026
+- [FIX] Remapping off columns did not happend when executing .query
+
 # 0.1.2
 ###### 07-05-2026
 - Added soft-delete support: when enabled, delete now marks records with a timestamp and excludes them from fetch/count queries.
