@@ -10,6 +10,8 @@
         "build": "tsc",
         "prebuild": "rm -rf dist",
         "test": "jest",
+        "audit": "npm audit --omit=dev",
+        "audit:json": "npm audit --omit=dev --json",
         "validatePackageVersion": "node validate-package-version.js",
         "version:bump": "npm version --git-tag-version=false patch",
         "version:bump:major": "npm version --git-tag-version=false major",
