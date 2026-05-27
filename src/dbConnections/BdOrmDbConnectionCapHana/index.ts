@@ -49,7 +49,8 @@ export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
         const cdsColumns = getTableColumns(table);
         if (cdsColumns) return cdsColumns;
         if (TABLE_COLUMNS[table]) return TABLE_COLUMNS[table];
-        const tableInfo: { COLUMN_NAME: string }[] = await this.query(
+        // important to user super.query here, because we don't want to remap the columns of this query, because we need the original column names to map them to the cds file column names (and prevent infinite loop)
+        const tableInfo: { COLUMN_NAME: string }[] = await super.query(
             `SELECT COLUMN_NAME FROM TABLE_COLUMNS WHERE TABLE_NAME = '${table}'`,
         );
         if (tableInfo.length === 0) throw new BdORMError(`No columns found for table ${table}`);
@@ -64,7 +65,8 @@ export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
         const primaryKey = getTablePrimaryKey(table);
         if (primaryKey) return primaryKey;
         if (PRIMARY_KEYS[table]) return PRIMARY_KEYS[table];
-        const tableInfo: [{ COLUMN_NAME: string }] = await this.query(
+        // important to user super.query here, because we don't want to remap the columns of this query, because we need the original column names to map them to the cds file column names (and prevent infinite loop)
+        const tableInfo: [{ COLUMN_NAME: string }] = await super.query(
             `SELECT COLUMN_NAME FROM SYS.INDEX_COLUMNS WHERE TABLE_NAME = '${table}' AND CONSTRAINT = 'PRIMARY KEY'`,
         );
         PRIMARY_KEYS[table] = tableInfo[0]?.COLUMN_NAME;
