@@ -22,6 +22,18 @@ const remapResultColumns = (result: Record<string, any>, columns: string[]) => {
     );
 };
 
+const getTableFromQuery = (query: string): string | undefined => {
+    const normalizedQuery = query.replace(/\s+/g, ' ').trim();
+    const tableMatcher =
+        /\bFROM\s+([A-Za-z0-9_."$]+)/i.exec(normalizedQuery) ||
+        /\bINTO\s+([A-Za-z0-9_."$]+)/i.exec(normalizedQuery) ||
+        /\bUPDATE\s+([A-Za-z0-9_."$]+)/i.exec(normalizedQuery) ||
+        /\bDELETE\s+FROM\s+([A-Za-z0-9_."$]+)/i.exec(normalizedQuery);
+    const table = tableMatcher?.[1];
+    if (!table) return undefined;
+    return table.replace(/"/g, '').split('.').pop();
+};
+
 export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
     protected async _db() {
         return cds.db ? cds.db : await cds.connect.to('db');
@@ -94,5 +106,22 @@ export default class BdOrmDbConnectionCapHana extends BdOrmDbConnectionSQLBase {
         const result = await super.read(table, primaryKeyValue, { primaryKey }),
             columns = await this.getTableColumns(table);
         return result ? remapResultColumns(result, columns) : result;
+    }
+
+    /**
+     * Overwrite to add remapping of columns to the query results, because hana stores the db columns in uppercase, so we need to convert the columns to what is defined in the cds file
+     */
+    public async query(query: string, escapedValues: any[] = []) {
+        const result = await super.query(query, escapedValues);
+        const table = getTableFromQuery(query);
+        const tableColumns = table ? await this.getTableColumns(table).catch(() => undefined) : undefined;
+        if (Array.isArray(result)) {
+            const columns = tableColumns ?? Object.keys(result[0] || {});
+            return result.map((row: Record<string, any>) => remapResultColumns(row, columns));
+        } else if (typeof result === 'object' && result !== null) {
+            const columns = tableColumns ?? Object.keys(result);
+            return remapResultColumns(result, columns);
+        }
+        return result;
     }
 }
