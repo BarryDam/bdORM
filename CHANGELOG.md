@@ -1,6 +1,10 @@
+# Unreleased
+###### 30-10-2026
+- [CHORE] Pinned direct dependencies to exact versions; updated cds-dk to 9.9.7 and Jest to 30.5.2 with matching types.
+
 # 0.1.3 - 0.1.4
 ###### 27-05-2026
-- [FIX] Remapping off columns did not happend when executing .query
+- [FIX] Remapping of columns did not happend when executing .query
 
 # 0.1.2
 ###### 07-05-2026
